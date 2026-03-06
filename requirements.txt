@@ -1,0 +1,11 @@
+flask
+flask-socketio
+eventlet
+watchdog
+psutil
+pandas
+scikit-learn
+joblib
+python-socketio
+python-engineio
+flask-cors
