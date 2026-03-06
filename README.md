@@ -1,41 +1,96 @@
-# AI-powered-ransomware-early-detection-and-prevention-platform
+AI-Powered Ransomware Early Detection and Prevention Platform
 
-About the Project
-This project is a simple AI-based security system that detects ransomware attacks early and helps prevent damage to the computer. It monitors system activity and identifies suspicious behavior using machine learning.
+Project Overview
 
-Purpose
-The purpose of this project is to protect files and systems from ransomware by detecting threats before they can encrypt data.
+This project is an AI-based cybersecurity system designed to detect ransomware attacks at an early stage and help prevent damage to a computer system.
 
-Features
+The platform continuously monitors system activity and analyzes behavior using a machine learning model. When suspicious activity similar to ransomware is detected, the system alerts the user and can take preventive actions to reduce system damage.
 
-Monitors system activity in real time
+A simple web dashboard is also included to allow users to monitor system activity and view alerts in real time.
 
-Detects suspicious behavior using AI
+---
 
-Alerts when a threat is detected
+## 🎯 Project Objective
 
-Helps prevent system damage
+The objective of this project is to protect files and systems from ransomware attacks by identifying threats before they encrypt user data.
 
-Simple web interface
+Early detection helps reduce the risk of data loss and improves system security.
 
-Technologies Used
-Python, Machine Learning, Flask, HTML
+---
 
-Project Files
-app.py – runs the main application
-ai_engine.py – detection logic
-data_collector.py – collects system data
-train_models.py – trains the AI model
-requirements.txt – required libraries
-templates/index.html – web page
+## ✨ Key Features
 
-How to Run
+* Real-time monitoring of system activity
+* AI-based detection of suspicious behavior
+* Early warning alerts for ransomware threats
+* Basic prevention mechanisms to reduce system damage
+* Simple web-based dashboard interface
 
-Install requirements
+---
+
+## ⚙️ Technologies Used
+
+* **Python**
+* **Machine Learning**
+* **Flask**
+* **HTML**
+* **Scikit-learn**
+* **Pandas**
+
+---
+
+## 📂 Project Structure
+
+```
+AI-powered-ransomware-early-detection-and-prevention-platform
+│
+├── app.py
+├── ai_engine.py
+├── data_collector.py
+├── train_models.py
+├── requirements.txt
+│
+└── templates
+    └── index.html
+```
+
+---
+
+## 🚀 How to Run the Project
+
+### 1. Install Required Libraries
+
+```
 pip install -r requirements.txt
+```
 
-Run program
+### 2. Run the Application
+
+```
 python app.py
+```
 
-How It Works
-The system watches system activity. If it detects behavior similar to ransomware, it alerts the user and takes action to stop the threat.
+### 3. Open the Dashboard
+
+After running the program, open your browser and go to:
+
+```
+http://127.0.0.1:5000
+```
+
+---
+
+## 🔎 How the System Works
+
+1. The **data_collector.py** monitors system activity and gathers behavioral data.
+2. The collected data is processed by **ai_engine.py**.
+3. The machine learning model analyzes patterns to detect ransomware-like behavior.
+4. If suspicious activity is detected, the system alerts the user and can trigger prevention mechanisms.
+5. The web dashboard displays system status and alerts in real time.
+
+---
+
+## ⚠️ Disclaimer
+
+This project is developed for **educational and research purposes only**.
+It demonstrates how artificial intelligence can be used to detect and respond to ransomware behavior.
