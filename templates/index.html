@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Ransomware Detection Dashboard</title>
+
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+:root{
+    --bg:#020617;
+    --panel:#020617cc;
+    --border:#1e293b;
+}
+.dim{
+    --bg:#000;
+    --panel:#020617aa;
+}
+body{
+    margin:0;
+    font-family:Segoe UI,system-ui;
+    background:radial-gradient(circle at top,#020617,#000);
+    color:#e5e7eb;
+}
+header{
+    padding:20px 30px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    border-bottom:1px solid var(--border);
+}
+h1{margin:0;color:#38bdf8}
+.status{display:flex;gap:10px;align-items:center;font-size:14px}
+.dot{width:10px;height:10px;border-radius:50%}
+
+.container{
+    padding:30px;
+    max-width:1050px;
+    margin-left:40px;
+}
+.cards{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+    gap:16px;
+    margin-bottom:20px;
+}
+.card{
+    background:var(--panel);
+    border:1px solid var(--border);
+    padding:16px;
+    border-radius:14px;
+}
+.card h3{margin:0 0 6px;color:#facc15;font-size:14px}
+.card p{margin:0;font-size:20px;font-weight:700}
+
+.controls{
+    display:flex;
+    gap:10px;
+    margin-bottom:15px;
+    flex-wrap:wrap;
+}
+button,select{
+    padding:8px 14px;
+    border-radius:10px;
+    border:1px solid #334155;
+    background:var(--panel);
+    color:white;
+    cursor:pointer;
+}
+.start{color:#22c55e}
+.stop{color:#ef4444}
+.reset{color:#facc15}
+
+.alert{
+    padding:14px;
+    border-radius:12px;
+    margin-bottom:10px;
+    border-left:4px solid;
+    position:relative;
+}
+.alert small{opacity:.7}
+.badge{
+    position:absolute;
+    top:10px;
+    right:10px;
+    font-size:11px;
+    padding:2px 8px;
+    border-radius:8px;
+    background:#020617;
+    border:1px solid #334155;
+}
+
+#search{
+    width:100%;
+    padding:10px;
+    border-radius:10px;
+    background:var(--panel);
+    color:white;
+    border:1px solid #334155;
+    margin-bottom:10px;
+}
+
+#aiSidebar{
+    position:fixed;
+    right:20px;
+    top:110px;
+    width:280px;
+}
+.aiCard{
+    background:#020617;
+    border:1px solid #334155;
+    border-radius:14px;
+    padding:14px;
+    margin-bottom:14px;
+}
+.aiTitle{font-size:12px;color:#94a3b8}
+.aiValue{font-size:22px;font-weight:700}
+.normal{color:#22c55e}
+.warning{color:#facc15}
+.critical{color:#ef4444}
+.aiSub{font-size:12px;opacity:.7}
+</style>
+</head>
+
+<body>
+
+<header>
+    <h1>🛡️ Ransomware Detection Dashboard</h1>
+    <div class="status">
+        <div class="dot" id="statusDot"></div>
+        <span id="statusText">Stopped</span>
+        <span id="rate">0 alerts/min</span>
+        <button onclick="toggleTheme()">🌗</button>
+    </div>
+</header>
+
+<div class="container">
+
+<div class="cards">
+    <div class="card"><h3>Total</h3><p id="total">0</p></div>
+    <div class="card"><h3>Critical</h3><p id="critical">0</p></div>
+    <div class="card"><h3>Warning</h3><p id="warning">0</p></div>
+</div>
+
+<div class="controls">
+    <button class="start" onclick="control('start')">▶ Start</button>
+    <button class="stop" onclick="control('stop')">⏹ Stop</button>
+    <button class="reset" onclick="resetUI()">♻ Reset</button>
+    <button onclick="simulate()">🧪 Demo Attack</button>
+    <select id="filter">
+        <option value="ALL">All</option>
+        <option value="CRITICAL">Critical</option>
+        <option value="WARNING">Warning</option>
+    </select>
+</div>
+
+<input id="search" placeholder="🔍 Search alerts...">
+<div id="alerts"></div>
+
+</div>
+
+<div id="aiSidebar">
+    <div class="aiCard">
+        <div class="aiTitle">AI Ransomware Risk</div>
+        <div id="aiRiskLabel" class="aiValue normal">NORMAL</div>
+        <div id="aiRiskScore" class="aiSub">0%</div>
+    </div>
+    <div class="aiCard">
+        <div class="aiTitle">AI Risk Timeline</div>
+        <canvas id="aiRiskTimeline" height="120"></canvas>
+    </div>
+</div>
+
+<script>
+const socket = io();
+const alertsDiv = document.getElementById("alerts");
+const statusDot = document.getElementById("statusDot");
+const statusText = document.getElementById("statusText");
+const rate = document.getElementById("rate");
+const filter = document.getElementById("filter");
+const search = document.getElementById("search");
+
+let total=0,critical=0,warning=0;
+let times=[];
+let systemRunning=false;
+
+function toggleTheme(){
+    document.body.classList.toggle("dim");
+}
+
+function updateStatus(){
+    statusText.textContent = systemRunning ? "Running" : "Stopped";
+    statusDot.style.background = systemRunning ? "#22c55e" : "#ef4444";
+}
+updateStatus();
+
+function control(action){
+    fetch("/api/control",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({action})
+    });
+    systemRunning = (action==="start");
+    updateStatus();
+}
+
+function resetUI(){
+    alertsDiv.innerHTML="";
+    total=critical=warning=0;
+    updateCounts();
+}
+
+filter.onchange = search.oninput = applyFilter;
+
+function applyFilter(){
+    const f=filter.value;
+    const s=search.value.toLowerCase();
+    [...alertsDiv.children].forEach(a=>{
+        a.style.display=(f==="ALL"||a.dataset.severity===f)&&
+        a.innerText.toLowerCase().includes(s)?"block":"none";
+    });
+}
+
+setInterval(()=>{
+    times=times.filter(t=>Date.now()-t<60000);
+    rate.textContent=`${times.length} alerts/min`;
+},3000);
+
+/* AUDIO  */
+let audioCtx;
+let audioUnlocked=false;
+
+function unlockAudio(){
+    if(audioUnlocked) return;
+    audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+    const o=audioCtx.createOscillator();
+    o.connect(audioCtx.destination);
+    o.start();
+    o.stop(audioCtx.currentTime+0.01);
+    audioUnlocked=true;
+}
+document.addEventListener("click", unlockAudio, {once:true});
+
+function encryptionBeep(){
+    if(!audioUnlocked) return;
+    const osc=audioCtx.createOscillator();
+    const gain=audioCtx.createGain();
+    osc.type="square";
+    osc.frequency.value=1000;
+    gain.gain.value=0.35;
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime+0.7);
+}
+
+/* AI CHART  */
+const ctx=document.getElementById("aiRiskTimeline").getContext("2d");
+const aiChart=new Chart(ctx,{
+    type:"line",
+    data:{
+        labels:[],
+        datasets:[{
+            data:[],
+            borderColor:"#ef4444",
+            backgroundColor:"rgba(239,68,68,0.2)",
+            fill:true,
+            tension:0.3
+        }]
+    },
+    options:{
+        plugins:{legend:{display:false}},
+        scales:{
+            x:{ticks:{display:false}},
+            y:{
+                min:0,
+                max:1,
+                ticks:{callback:v=> (v*100)+"%"}
+            }
+        }
+    }
+});
+
+/*  SOCKET ALERT  */
+socket.on("new_alert", alert => {
+
+    if (!systemRunning) return;
+
+    total++;
+    times.push(Date.now());
+
+    if (alert.severity === "CRITICAL") critical++;
+    if (alert.severity === "WARNING") warning++;
+
+    updateCounts();
+
+    const div = document.createElement("div");
+    div.className = "alert";
+    div.dataset.severity = alert.severity;
+
+    let bg = "#1e3a8a", border = "#38bdf8";
+
+    if (alert.severity === "WARNING") {
+        bg = "#78350f";
+        border = "#facc15";
+    }
+
+    if (alert.severity === "CRITICAL") {
+        bg = "#450a0a";
+        border = "#ef4444";
+    }
+
+    div.style.background = `linear-gradient(135deg, ${bg}, #020617)`;
+    div.style.borderLeftColor = border;
+
+    /* FILE / PROCESS DETAILS  */
+    let fileInfo = "";
+
+    if (alert.details?.name)
+        fileInfo += `<small>🧠 Process: ${alert.details.name}</small><br>`;
+
+    if (alert.details?.cpu)
+        fileInfo += `<small>⚡ CPU: ${alert.details.cpu}%</small><br>`;
+
+    if (alert.details?.path)
+        fileInfo += `<small>📁 Path: ${alert.details.path}</small><br>`;
+
+    if (alert.details?.file)
+        fileInfo += `<small>📄 File: ${alert.details.file}</small><br>`;
+
+    if (alert.details?.folder)
+        fileInfo += `<small>📂 Folder: ${alert.details.folder}</small><br>`;
+
+    if (alert.details?.pid)
+        fileInfo += `<small>🔢 PID: ${alert.details.pid}</small><br>`;
+
+    div.innerHTML = `
+        <b>${alert.description}</b><br>
+        ${fileInfo}
+        <span class="badge">${alert.mitre || "MITRE"}</span>
+    `;
+
+    alertsDiv.prepend(div);
+
+    /* ENCRYPTION ONLY BEEP  */
+    const desc = (alert.description || "").toUpperCase();
+    if (desc.includes("ENCRYPT") || alert.mitre === "T1486") {
+        encryptionBeep();
+    }
+
+    /*  AI RISK UPDATE (FIXED POSITION)  */
+    let risk = 0.2;
+    if (alert.severity === "WARNING") risk = 0.6;
+    if (alert.severity === "CRITICAL") risk = 0.9;
+
+    document.getElementById("aiRiskScore").innerText = Math.round(risk * 100) + "%";
+
+    const label = document.getElementById("aiRiskLabel");
+    if (risk >= 0.9) {
+        label.textContent = "CRITICAL";
+        label.className = "aiValue critical";
+    } else if (risk >= 0.6) {
+        label.textContent = "WARNING";
+        label.className = "aiValue warning";
+    } else {
+        label.textContent = "NORMAL";
+        label.className = "aiValue normal";
+    }
+
+    aiChart.data.labels.push("");
+    aiChart.data.datasets[0].data.push(risk);
+
+    if (aiChart.data.labels.length > 15) {
+        aiChart.data.labels.shift();
+        aiChart.data.datasets[0].data.shift();
+    }
+
+    aiChart.update();
+
+});
+
+
+
+    /* AI RISK UPDATE */
+    let risk=0.2;
+    if(alert.severity==="WARNING") risk=0.6;
+    if(alert.severity==="CRITICAL") risk=0.9;
+
+    document.getElementById("aiRiskScore").innerText=Math.round(risk*100)+"%";
+
+    const label=document.getElementById("aiRiskLabel");
+    if(risk>=0.9){
+        label.textContent="CRITICAL";
+        label.className="aiValue critical";
+    } else if(risk>=0.6){
+        label.textContent="WARNING";
+        label.className="aiValue warning";
+    } else {
+        label.textContent="NORMAL";
+        label.className="aiValue normal";
+    }
+
+    aiChart.data.labels.push("");
+    aiChart.data.datasets[0].data.push(risk);
+
+    if(aiChart.data.labels.length>15){
+        aiChart.data.labels.shift();
+        aiChart.data.datasets[0].data.shift();
+    }
+    aiChart.update();
+
+
+function updateCounts(){
+    document.getElementById("total").textContent=total;
+    document.getElementById("critical").textContent=critical;
+    document.getElementById("warning").textContent=warning;
+}
+
+function simulate(){
+    unlockAudio();
+    socket.emit("new_alert",{
+        description:"File Encryption Detected",
+        severity:"CRITICAL",
+        mitre:"T1486"
+    });
+}
+</script>
+
+</body>
+</html>
