@@ -80,7 +80,7 @@ http://127.0.0.1:5000
 
 ---
 
-## 🔎 How the System Works
+How the System Works
 
 1. The **data_collector.py** monitors system activity and gathers behavioral data.
 2. The collected data is processed by **ai_engine.py**.
@@ -90,7 +90,7 @@ http://127.0.0.1:5000
 
 ---
 
-## ⚠️ Disclaimer
+ Disclaimer
 
 This project is developed for **educational and research purposes only**.
 It demonstrates how artificial intelligence can be used to detect and respond to ransomware behavior.
